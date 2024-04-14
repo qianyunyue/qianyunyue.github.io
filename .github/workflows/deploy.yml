@@ -1,0 +1,44 @@
+name: Deploy Hexo
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 用于获取提交记录，获取文件更新时间
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+
+      - name: Install Dependencies
+        run: |
+          npm install
+
+      # https://github.com/zhullyb/zhullyb.github.io/blob/master/.github/workflows/deploy.yml
+      # 修复 hexo 生成的文件更新时间 为当前时间，实际应为提交时间
+      - name: Fix File Updated Date
+        run: |
+          git ls-files | while read filepath; do touch -d "$(git log -1 --format='@%ct' $filepath)" "$filepath" && echo "Fixed: $filepath"; done
+
+      - name: Build Site
+        run: |
+          npm run clean
+          npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: public
